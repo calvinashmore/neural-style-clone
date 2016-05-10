@@ -34,7 +34,7 @@ cmd:option('-save_iter', 100)
 cmd:option('-output_image', 'out.png')
 
 -- Other options
-cmd:option('-style_scale', 1.0)
+cmd:option('-style_scale', 'nil')
 cmd:option('-pooling', 'max', 'max|avg')
 cmd:option('-proto_file', 'models/VGG_ILSVRC_19_layers_deploy.prototxt')
 cmd:option('-model_file', 'models/VGG_ILSVRC_19_layers.caffemodel')
@@ -82,11 +82,26 @@ local function main(params)
   local content_image = image.load(params.content_image, 3)
   content_image = image.scale(content_image, params.image_size, 'bilinear')
   local content_image_caffe = preprocess(content_image):float()
-  
-  local style_size = math.ceil(params.style_scale * params.image_size)
+
   local style_image_list = params.style_image:split(',')
+
+  -- Handle style sizing for multiple style inputs
+  local style_sizes = nil
+  if params.style_size == 'nil' then
+    style_sizes = {}
+    for i = 1, #style_image_list do
+      table.insert(style_sizes, 1.0)
+    end
+  else
+    style_sizes = params.style_scale:split(',')
+    assert(#style_sizes == #style_image_list,
+      '-style_scale and -style_images must have the same number of elements')
+  end
+  
   local style_images_caffe = {}
-  for _, img_path in ipairs(style_image_list) do
+  for i, img_path in ipairs(style_image_list) do
+    local style_size = math.ceil(style_sizes[i] * params.image_size)
+
     local img = image.load(img_path, 3)
     img = image.scale(img, style_size, 'bilinear')
     local img_caffe = preprocess(img):float()
